@@ -1,110 +1,147 @@
 var NEW_ITEM_TEMPLATE =
-	'<li class="<%= completeClass %>" data-id="<%= _id %>">' +
-		'<div class="view">' +
-			'<input class="toggle" type="checkbox">' +
-			'<label><%= text %></label>' +
-			'<button class="destroy"></button>' +
-		'</div>' +
-		'<input class="edit" value="<%= text %>">' +
-	'</li>';
+    '<li class="<%= completeClass %>" data-id="<%= _id %>">' +
+    '<div class="view">' +
+    '<input class="toggle" type="checkbox">' +
+    '<label><%= text %></label>' +
+    '<button class="destroy"></button>' +
+    '</div>' +
+    '<input class="edit" value="<%= text %>">' +
+    '</li>';
 
 (function () {
-	var app = Neutrino.app('19bcea83e5f3481cb74e40c7146f1a30');
-	var todos = app.use('todos');
-	//TODO: implement login
+    var app = Neutrino.app('8139ed1ec39a467b96b0250dcf520749');
+    var todos = app.use('todos');
+    var todoCollection;
 
-	function destroyClickHandler() {
-		$li = $(this.closest('li'));
-		id = $li.data('id');
+    function listItemById(id) {
+        return $('li[data-id="' + id + '"');
+    }
 
-		todos.remove(id)
-			.then(function () {
-				$li.detach();
-			});
-	}
-
-	function toggleClickHandler() {
-		$li = $(this.closest('li'));
-		id = $li.data('id');
-
-		todos.object(id)
-			.then(function (todo) {
-				todo.complete = !$li.hasClass('completed');
-				return todo.update();
-			})
-			.then(function () {
-				$li.toggleClass('completed');
-			});
-	}
-
-    function todoDoubleClickHandler($todo, $edit) {
+    function destroyClickHandler(todoObject) {
         return function () {
-            $edit.val($todo.dataBound.text);
-            $edit.focus();
-            $todo.toggleClass('editing');
+            todoObject.remove();
         }
     }
 
-    function editElementKeyupHandler($todo, $edit) {
+    function toggleClickHandler($li, todoObject) {
+        return function () {
+            todoObject.complete = !$li.hasClass('completed');
+            $li.toggleClass('completed');
+        }
+    }
+
+    function todoDoubleClickHandler($todo, $edit, todoObject) {
+        return function () {
+            $edit.val(todoObject.text);
+            $todo.toggleClass('editing');
+            setTimeout(function () {
+                $edit.focus();
+            });
+        }
+    }
+
+    function editElementKeyupHandler($todo, $edit, todoObject) {
         return function (e) {
             if (e.keyCode == 13) { //enter
-                $todo.dataBound.text = $edit.val();
+                todoObject.text = $edit.val();
+                $todo.toggleClass('editing');
+            } else if (e.keyCode == 27) {
                 $todo.toggleClass('editing');
             }
         }
     }
 
-	function renderItems(objects) {
-		$todoContainer = $('.todo-list');
-		$todoContainer.empty();
-		objects.forEach(function (o) {
-			var compiledTemplate = _.template(NEW_ITEM_TEMPLATE);
-			var model = {};
-			model._id = o._id;
-			model.text = o.text;
-			model.completeClass = o.complete ? 'completed' : '';
+    function renderItems(objects, clear) {
+        $todoContainer = $('.todo-list');
+        if (clear) {
+            $todoContainer.empty();
+        }
 
-			$todoElement = $(compiledTemplate(model));
-            $todoElement.dataBound = o;
+        objects = Array.isArray(objects) ? objects : [objects];
 
-            o.onChanged(function () {
-                $('li[data-id="' + o._id + '"').find('label').text(o.text);
-            });
+        objects.forEach(function (todoObject) {
+            var compiledTemplate = _.template(NEW_ITEM_TEMPLATE);
+            var model = {};
+            model._id = todoObject._id;
+            model.text = todoObject.text;
+            model.completeClass = todoObject.complete ? 'completed' : '';
 
-			$toggle = $todoElement.find('.toggle');
-			$toggle.prop('checked', o.complete);
-			$toggle.on('click', toggleClickHandler);
+            $todoElement = $(compiledTemplate(model));
+            $todoElement.dataBound = todoObject;
 
-			$todoElement.find('.destroy').on('click', destroyClickHandler);
+            $toggle = $todoElement.find('.toggle');
+            $toggle.prop('checked', todoObject.complete);
+            $toggle.on('click', toggleClickHandler($todoElement, todoObject));
+
+            $todoElement.find('.destroy').on('click', destroyClickHandler(todoObject));
 
             $edit = $todoElement.find('.edit');
-            $edit.on('keyup', editElementKeyupHandler($todoElement, $edit));
-            $todoElement.find('.view').on('dblclick', todoDoubleClickHandler($todoElement, $edit));
+            $edit.on('keyup', editElementKeyupHandler($todoElement, $edit, todoObject));
+            $todoElement.find('.view').on('dblclick', todoDoubleClickHandler($todoElement, $edit, todoObject));
 
-			$todoContainer.append($todoElement);
-		});
-	}
+            todoObject.onChanged(function () {
+                $li = listItemById(todoObject._id);
+                $li.find('label').text(todoObject.text);
+                $li.find('.toggle').prop('checked', todoObject.complete);
+                $li.toggleClass('completed', todoObject.complete);
+            });
 
-	function init() {
-		$('#todo-input').keyup(function(e){
-			if(e.keyCode == 13) {
-				todos.object({
-					text: $('#todo-input').val()
-				}).then(function (id) {
-					$('#todo-input').val('');
-					//TODO: filter by id
-					return todos.objects();
-				}).then(renderItems);
-			}
-		});
-	}
+            $todoContainer.append($todoElement);
+        });
+    }
 
-	app.auth.login('test', 'test')
-		.then(function () {
-			return todos.objects({
+    function init() {
+        var $todoInput = $('#todo-input');
+
+        $todoInput.keyup(function (e) {
+            if (e.keyCode == 13 && $todoInput.val()) {
+                todoCollection.push({
+                    text: $todoInput.val(),
+                    complete: false
+                });
+
+                $todoInput.val('');
+            } else if (e.keyCode == 27) {
+                $todoInput.val('');
+            }
+        });
+
+        $('.clear-completed').on('click', function () {
+            var completed = todoCollection.filter(function (o) {
+                return !!o.complete;
+            });
+
+            var completePromises = completed.map(function (o) {
+                return o.remove();
+            });
+
+            Promise.all(completePromises)
+                .then(function (ids) {
+                    ids.forEach(function (id) {
+                         listItemById(id).remove();
+                    });
+                });
+        });
+
+        todoCollection.onChanged(function (e) {
+            if (e.ev === Neutrino.ArrayEvents.add) {
+                item = e.value;
+                renderItems(item, false);
+            } else if (e.ev === Neutrino.ArrayEvents.remove) {
+                listItemById(e.value._id).remove();
+            }
+        });
+    }
+
+    app.auth.login('test', 'test')
+        .then(function () {
+            return todos.objects({
                 realtime: true
-            }).then(renderItems);
-		})
-		.then(init)
-		.catch(console.log.bind(console));
+            }).then(function (objects) {
+                todoCollection = objects;
+                renderItems(objects, true);
+            });
+        })
+        .then(init)
+        .catch(console.log.bind(console));
 })();
