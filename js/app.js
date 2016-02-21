@@ -13,6 +13,46 @@ var NEW_ITEM_TEMPLATE =
 	var todos = app.use('todos');
 	//TODO: implement login
 
+	function destroyClickHandler() {
+		$li = $(this.closest('li'));
+		id = $li.data('id');
+
+		todos.remove(id)
+			.then(function () {
+				$li.detach();
+			});
+	}
+
+	function toggleClickHandler() {
+		$li = $(this.closest('li'));
+		id = $li.data('id');
+
+		todos.object(id)
+			.then(function (todo) {
+				todo.complete = !$li.hasClass('completed');
+				return todo.update();
+			})
+			.then(function () {
+				$li.toggleClass('completed');
+			});
+	}
+
+    function todoDoubleClickHandler($todo, $edit) {
+        return function () {
+            $edit.val($todo.dataBound.text);
+            $todo.toggleClass('editing');
+        }
+    }
+
+    function editElementKeyupHandler($todo, $edit) {
+        return function (e) {
+            if (e.keyCode == 13) { //enter
+                $todo.dataBound.text = $edit.val();
+                $todo.toggleClass('editing');
+            }
+        }
+    }
+
 	function renderItems(objects) {
 		$todoContainer = $('.todo-list');
 		$todoContainer.empty();
@@ -21,10 +61,25 @@ var NEW_ITEM_TEMPLATE =
 			var model = {};
 			model._id = o._id;
 			model.text = o.text;
-			model.completeClass = o.complete ? 'complete' : '';
+			model.completeClass = o.complete ? 'completed' : '';
 
 			$todoElement = $(compiledTemplate(model));
-			$todoElement.find('.toggle').prop('checked', o.complete);
+            $todoElement.dataBound = o;
+
+            o.onChanged(function () {
+                $todoElement.find('label').text(o.text);
+            });
+
+			$toggle = $todoElement.find('.toggle');
+			$toggle.prop('checked', o.complete);
+			$toggle.on('click', toggleClickHandler);
+
+			$todoElement.find('.destroy').on('click', destroyClickHandler);
+
+            $edit = $todoElement.find('.edit');
+            $edit.on('keyup', editElementKeyupHandler($todoElement, $edit));
+            $todoElement.find('.view').on('dblclick', todoDoubleClickHandler($todoElement, $edit));
+
 			$todoContainer.append($todoElement);
 		});
 	}
@@ -41,36 +96,13 @@ var NEW_ITEM_TEMPLATE =
 				}).then(renderItems);
 			}
 		});
-
-		$('.destroy').click(function () {
-			$li = $(this.closest('li'));
-			id = $li.data('id');
-
-			todos.remove(id)
-				.then(function () {
-					$li.detach();
-				});
-		});
-
-		$('.toggle').click(function () {
-			$li = $(this.closest('li'));
-			id = $li.data('id');
-
-			todos.object(id)
-				.then(function (todo) {
-					todo.complete = !$li.hasClass('complete');
-					return todo.update();
-				})
-				.then(function () {
-					$li.toggleClass('complete');
-				});
-		});
 	}
 
 	app.auth.login('test', 'test')
 		.then(function () {
-			return todos.objects()
-				.then(renderItems);
+			return todos.objects({
+                realtime: true
+            }).then(renderItems);
 		})
 		.then(init)
 		.catch(console.log.bind(console));
