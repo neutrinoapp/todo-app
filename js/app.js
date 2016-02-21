@@ -40,6 +40,7 @@ var NEW_ITEM_TEMPLATE =
     function todoDoubleClickHandler($todo, $edit) {
         return function () {
             $edit.val($todo.dataBound.text);
+            $edit.focus();
             $todo.toggleClass('editing');
         }
     }
@@ -67,7 +68,7 @@ var NEW_ITEM_TEMPLATE =
             $todoElement.dataBound = o;
 
             o.onChanged(function () {
-                $todoElement.find('label').text(o.text);
+                $('li[data-id="' + o._id + '"').find('label').text(o.text);
             });
 
 			$toggle = $todoElement.find('.toggle');
