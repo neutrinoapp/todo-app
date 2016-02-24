@@ -123,7 +123,7 @@ var NEW_ITEM_TEMPLATE =
                 });
         });
 
-        todoCollection.onChanged(function (e) {
+        todoCollection.on('change', function (e) {
             if (e.ev === Neutrino.ArrayEvents.add) {
                 item = e.value;
                 renderItems(item, false);
