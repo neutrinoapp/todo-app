@@ -9,7 +9,7 @@ var NEW_ITEM_TEMPLATE =
     '</li>';
 
 (function () {
-    var app = Neutrino.app('8139ed1ec39a467b96b0250dcf520749');
+    var app = Neutrino.app('19bcea83e5f3481cb74e40c7146f1a30');
     var todos = app.use('todos');
     var todoCollection;
 
@@ -79,7 +79,7 @@ var NEW_ITEM_TEMPLATE =
             $edit.on('keyup', editElementKeyupHandler($todoElement, $edit, todoObject));
             $todoElement.find('.view').on('dblclick', todoDoubleClickHandler($todoElement, $edit, todoObject));
 
-            todoObject.onChanged(function () {
+            todoObject.on(Neutrino.ObjectEvents.change, function () {
                 $li = listItemById(todoObject._id);
                 $li.find('label').text(todoObject.text);
                 $li.find('.toggle').prop('checked', todoObject.complete);
@@ -123,13 +123,13 @@ var NEW_ITEM_TEMPLATE =
                 });
         });
 
-        todoCollection.on('change', function (e) {
-            if (e.ev === Neutrino.ArrayEvents.add) {
-                item = e.value;
-                renderItems(item, false);
-            } else if (e.ev === Neutrino.ArrayEvents.remove) {
-                listItemById(e.value._id).remove();
-            }
+        todoCollection.on(Neutrino.ArrayEvents.add, function (e) {
+            var item = e.value;
+            renderItems(item, false);
+        });
+
+        todoCollection.on(Neutrino.ArrayEvents.remove, function (e) {
+            listItemById(e.value._id).remove();
         });
     }
 

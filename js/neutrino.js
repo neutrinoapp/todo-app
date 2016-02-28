@@ -1,1 +1,0 @@
-/home/gngeorgiev/stuff/neutrino-javascript-sdk/dist/neutrino.js
