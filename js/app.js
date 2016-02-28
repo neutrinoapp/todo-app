@@ -129,15 +129,14 @@ var NEW_ITEM_TEMPLATE =
         });
 
         todoCollection.on(Neutrino.ArrayEvents.remove, function (e) {
-            listItemById(e.value._id).remove();
+            var item = e.value;
+            listItemById(item._id).remove();
         });
     }
 
     app.auth.login('test', 'test')
         .then(function () {
-            return todos.objects({
-                realtime: true
-            }).then(function (objects) {
+            return todos.objects({realtime: true}).then(function (objects) {
                 todoCollection = objects;
                 renderItems(objects, true);
             });
