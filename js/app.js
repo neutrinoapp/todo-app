@@ -9,9 +9,10 @@ var NEW_ITEM_TEMPLATE =
     '</li>';
 
 (function () {
-    var app = Neutrino.app('19bcea83e5f3481cb74e40c7146f1a30');
+    var app = Neutrino.app('8139ed1ec39a467b96b0250dcf520749');
     var todos = app.use('todos');
     var todoCollection;
+    var completedTodoCollection;
 
     function listItemById(id) {
         return $('li[data-id="' + id + '"');
@@ -139,6 +140,15 @@ var NEW_ITEM_TEMPLATE =
             return todos.objects({realtime: true}).then(function (objects) {
                 todoCollection = objects;
                 renderItems(objects, true);
+            }).then(function () {
+                return todos.objects({
+                    realtime: true,
+                    filter: {
+                        complete: true
+                    }
+                })
+            }).then(function (completedObjects) {
+                completedTodoCollection = completedObjects;
             });
         })
         .then(init)
