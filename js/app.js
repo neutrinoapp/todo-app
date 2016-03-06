@@ -9,7 +9,7 @@ var NEW_ITEM_TEMPLATE =
     '</li>';
 
 (function () {
-    var app = Neutrino.app('8139ed1ec39a467b96b0250dcf520749');
+    var app = Neutrino.app('224b53b3aaeb4e8fa10e98379fad017c');
     var todos = app.use('todos');
     var todoCollection;
     var completedTodoCollection;
@@ -135,7 +135,7 @@ var NEW_ITEM_TEMPLATE =
         });
     }
 
-    app.auth.login('test', 'test')
+    app.auth.login('test1', 'test1')
         .then(function () {
             return todos.objects({realtime: true}).then(function (objects) {
                 todoCollection = objects;
@@ -144,11 +144,12 @@ var NEW_ITEM_TEMPLATE =
                 return todos.objects({
                     realtime: true,
                     filter: {
-                        complete: true
+                        complete: false
                     }
                 })
             }).then(function (completedObjects) {
                 completedTodoCollection = completedObjects;
+                window.a = completedTodoCollection;
             });
         })
         .then(init)
