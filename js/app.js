@@ -9,10 +9,11 @@ var NEW_ITEM_TEMPLATE =
     '</li>';
 
 (function () {
-    var app = Neutrino.app('224b53b3aaeb4e8fa10e98379fad017c');
+    var app = window.app = Neutrino.app('de3aac6feea94a25b0810fa71747429e');
     var todos = app.use('todos');
     var todoCollection;
     var completedTodoCollection;
+    var notCompletedTodoCollection;
 
     function listItemById(id) {
         return $('li[data-id="' + id + '"');
@@ -91,7 +92,7 @@ var NEW_ITEM_TEMPLATE =
         });
     }
 
-    function init() {
+    function initHandlers() {
         var $todoInput = $('#todo-input');
 
         $todoInput.keyup(function (e) {
@@ -124,34 +125,87 @@ var NEW_ITEM_TEMPLATE =
                 });
         });
 
-        todoCollection.on(Neutrino.ArrayEvents.add, function (e) {
-            var item = e.value;
-            renderItems(item, false);
+        var $filterButtons = $('.filter');
+        $filterButtons.on('click', function () {
+            $filterButtons.removeClass('selected');
+            $(this).addClass('selected');
         });
 
-        todoCollection.on(Neutrino.ArrayEvents.remove, function (e) {
-            var item = e.value;
-            listItemById(item._id).remove();
-        });
+        window.onhashchange = function () {
+            var hash = location.hash;
+
+            var $filterAll = $('.filter-all');
+            var $filterActive = $('.filter-active');
+            var $filterCompleted = $('.filter-completed');
+
+            var renderRealtimeCollection = function (collection) {
+                collection.on(Neutrino.ArrayEvents.add, function (e) {
+                    var item = e.value;
+                    renderItems(selector, item, false);
+                });
+
+                collection.on(Neutrino.ArrayEvents.remove, function (e) {
+                    var item = e.value;
+                    listItemById(item._id).remove();
+                });
+
+                renderItems(collection, true);
+            };
+
+            if (hash === '#/active') {
+                renderRealtimeCollection(notCompletedTodoCollection);
+                $filterAll.removeClass('selected');
+                $filterCompleted.removeClass('selected');
+                $filterActive.addClass('selected');
+            } else if (hash === '#/completed') {
+                renderRealtimeCollection(completedTodoCollection);
+                $filterAll.removeClass('selected');
+                $filterCompleted.addClass('selected');
+                $filterActive.removeClass('selected');
+            } else {
+                renderRealtimeCollection(todoCollection);
+                $filterAll.addClass('selected');
+                $filterCompleted.removeClass('selected');
+                $filterActive.removeClass('selected');
+            }
+        };
+
+        window.onhashchange();
     }
 
-    app.auth.login('test1', 'test1')
-        .then(function () {
-            return todos.objects({realtime: true}).then(function (objects) {
+    var initData = function () {
+        return Promise.all([
+            todos.objects({realtime: true}).then(function (objects) {
                 todoCollection = objects;
-                renderItems(objects, true);
-            }).then(function () {
-                return todos.objects({
-                    realtime: true,
-                    filter: {
-                        complete: false
-                    }
-                })
+            }),
+            todos.objects({
+                realtime: true,
+                filter: {
+                    complete: false
+                }
+            }).then(function (notCompletedObjects) {
+                notCompletedTodoCollection = notCompletedObjects;
+                var collectionChangedHandler = function () {
+                    $('.todo-count').text(notCompletedTodoCollection.length + ' items left');
+                };
+
+                notCompletedTodoCollection.on(Neutrino.ArrayEvents.add, collectionChangedHandler);
+                notCompletedTodoCollection.on(Neutrino.ArrayEvents.remove, collectionChangedHandler);
+                collectionChangedHandler();
+            }),
+            todos.objects({
+                realtime: true,
+                filter: {
+                    complete: true
+                }
             }).then(function (completedObjects) {
                 completedTodoCollection = completedObjects;
-                window.a = completedTodoCollection;
-            });
-        })
-        .then(init)
+            })
+        ]);
+    };
+
+    app.auth.login('test1', 'test1')
+        .then(initData)
+        .then(initHandlers)
         .catch(console.log.bind(console));
 })();
