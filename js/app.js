@@ -1,5 +1,5 @@
 var NEW_ITEM_TEMPLATE =
-    '<li class="<%= completeClass %>" data-id="<%= _id %>">' +
+    '<li class="<%= completeClass %>" data-id="<%= id %>">' +
     '<div class="view">' +
     '<input class="toggle" type="checkbox">' +
     '<label><%= text %></label>' +
@@ -10,7 +10,6 @@ var NEW_ITEM_TEMPLATE =
 
 (function () {
     var app = window.app = Neutrino.app('de3aac6feea94a25b0810fa71747429e');
-    var todos = app.use('todos');
     var todoCollection;
     var completedTodoCollection;
     var notCompletedTodoCollection;
@@ -64,7 +63,7 @@ var NEW_ITEM_TEMPLATE =
         objects.forEach(function (todoObject) {
             var compiledTemplate = _.template(NEW_ITEM_TEMPLATE);
             var model = {};
-            model._id = todoObject._id;
+            model.id = todoObject.id;
             model.text = todoObject.text;
             model.completeClass = todoObject.complete ? 'completed' : '';
 
@@ -80,13 +79,6 @@ var NEW_ITEM_TEMPLATE =
             $edit = $todoElement.find('.edit');
             $edit.on('keyup', editElementKeyupHandler($todoElement, $edit, todoObject));
             $todoElement.find('.view').on('dblclick', todoDoubleClickHandler($todoElement, $edit, todoObject));
-
-            todoObject.on(Neutrino.ObjectEvents.change, function () {
-                $li = listItemById(todoObject._id);
-                $li.find('label').text(todoObject.text);
-                $li.find('.toggle').prop('checked', todoObject.complete);
-                $li.toggleClass('completed', todoObject.complete);
-            });
 
             $todoContainer.append($todoElement);
         });
@@ -131,6 +123,20 @@ var NEW_ITEM_TEMPLATE =
             $(this).addClass('selected');
         });
 
+        var onItemAdded = function (e) {
+            var item = e.value;
+            renderItems(item, false);
+        };
+
+        var onItemRemoved = function (e) {
+            var item = e.value;
+            listItemById(item.id).remove();
+        };
+
+        var onItemChanged = function (e, todoObject, collection) {
+            renderItems(collection, true);
+        };
+
         window.onhashchange = function () {
             var hash = location.hash;
 
@@ -139,15 +145,21 @@ var NEW_ITEM_TEMPLATE =
             var $filterCompleted = $('.filter-completed');
 
             var renderRealtimeCollection = function (collection) {
-                collection.on(Neutrino.ArrayEvents.add, function (e) {
-                    var item = e.value;
-                    renderItems(selector, item, false);
-                });
+                notCompletedTodoCollection.off(Neutrino.ArrayEvents.add, onItemAdded);
+                notCompletedTodoCollection.off(Neutrino.ArrayEvents.remove, onItemRemoved);
+                notCompletedTodoCollection.off(Neutrino.ArrayEvents.itemChange, onItemChanged);
 
-                collection.on(Neutrino.ArrayEvents.remove, function (e) {
-                    var item = e.value;
-                    listItemById(item._id).remove();
-                });
+                completedTodoCollection.off(Neutrino.ArrayEvents.add, onItemAdded);
+                completedTodoCollection.off(Neutrino.ArrayEvents.remove, onItemRemoved);
+                completedTodoCollection.off(Neutrino.ArrayEvents.itemChange, onItemChanged);
+
+                todoCollection.off(Neutrino.ArrayEvents.add, onItemAdded);
+                todoCollection.off(Neutrino.ArrayEvents.remove, onItemRemoved);
+                todoCollection.off(Neutrino.ArrayEvents.itemChange, onItemChanged);
+
+                collection.on(Neutrino.ArrayEvents.add, onItemAdded);
+                collection.on(Neutrino.ArrayEvents.remove, onItemRemoved);
+                collection.on(Neutrino.ArrayEvents.itemChange, onItemChanged);
 
                 renderItems(collection, true);
             };
@@ -174,6 +186,8 @@ var NEW_ITEM_TEMPLATE =
     }
 
     var initData = function () {
+        var todos = app.use('todos');
+
         return Promise.all([
             todos.objects({realtime: true}).then(function (objects) {
                 todoCollection = objects;
@@ -189,8 +203,7 @@ var NEW_ITEM_TEMPLATE =
                     $('.todo-count').text(notCompletedTodoCollection.length + ' items left');
                 };
 
-                notCompletedTodoCollection.on(Neutrino.ArrayEvents.add, collectionChangedHandler);
-                notCompletedTodoCollection.on(Neutrino.ArrayEvents.remove, collectionChangedHandler);
+                notCompletedTodoCollection.on(Neutrino.ArrayEvents.change, collectionChangedHandler);
                 collectionChangedHandler();
             }),
             todos.objects({
