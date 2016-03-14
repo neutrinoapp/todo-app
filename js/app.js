@@ -9,7 +9,11 @@ var NEW_ITEM_TEMPLATE =
     '</li>';
 
 (function () {
-    var app = window.app = Neutrino.app('aedb27124c2e4d17bc3da2fad7081387');
+    var appId = '8cde39fdf3e24fb2a003b49adc7fc1be';
+    // var appId = 'aedb27124c2e4d17bc3da2fad7081387';
+
+    var app = window.app = Neutrino.app(appId);
+
     var todoCollection;
     var completedTodoCollection;
     var notCompletedTodoCollection;
