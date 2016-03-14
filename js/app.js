@@ -9,7 +9,7 @@ var NEW_ITEM_TEMPLATE =
     '</li>';
 
 (function () {
-    var app = window.app = Neutrino.app('de3aac6feea94a25b0810fa71747429e');
+    var app = window.app = Neutrino.app('aedb27124c2e4d17bc3da2fad7081387');
     var todoCollection;
     var completedTodoCollection;
     var notCompletedTodoCollection;
@@ -121,6 +121,17 @@ var NEW_ITEM_TEMPLATE =
         $filterButtons.on('click', function () {
             $filterButtons.removeClass('selected');
             $(this).addClass('selected');
+        });
+
+        $('#toggle-all').on('click', function () {
+            var allComplete = todoCollection.every(function (todo) {
+                return todo.complete;
+            });
+
+            var toggle = !allComplete;
+            todoCollection.forEach(function (todo) {
+                todo.complete = toggle;
+            });
         });
 
         var onItemAdded = function (e) {
